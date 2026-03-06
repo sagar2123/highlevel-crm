@@ -17,12 +17,21 @@ A multi-tenant CRM data platform built with Go, PostgreSQL, and Elasticsearch. D
                                           └──────────────────┘
 ```
 
-**Layered Architecture (Clean Architecture)**
+**Layered Architecture **
 - `cmd/` - Entry point, dependency injection
 - `config/` - Environment-based configuration
 - `internal/domain/` - Entities, value objects, repository interfaces
 - `internal/application/` - Business logic, DTOs, controllers
 - `internal/infrastructure/` - Database, Elasticsearch, HTTP, middleware
+
+## Architectural Patterns & Tech Stack
+
+This project follows my established architectural patterns for Go-based microservices, utilizing a **Domain-Driven Design (DDD)** structure. This ensures a clear separation of concerns between the business logic (Domain), the implementation (Infrastructure), and the API (Application), which is critical for long-term maintainability in a platform of this scale.
+
+- **Framework:** [Gin](https://gin-gonic.com/) for high-performance HTTP routing and middleware.
+- **ORM:** [GORM](https://gorm.io/) for developer-friendly database interactions and schema management.
+- **Service Layer:** Implements a generic object pattern to handle both core CRM entities and custom objects through a unified service interface.
+- **Search Engine:** Integrated with **Elasticsearch 8** for distributed search and filtering, utilizing shard routing for tenant isolation.
 
 ## Key Design Decisions
 
@@ -34,7 +43,7 @@ A multi-tenant CRM data platform built with Go, PostgreSQL, and Elasticsearch. D
 | Search | Elasticsearch with routing | Shard-level tenant isolation, sub-50ms P95 for filtered queries |
 | API pattern | Generic /objects/{type} | One controller handles all object types, mirrors HubSpot pattern |
 
-## Core Objects
+## Core Entities
 
 - **Contacts** - People with email, phone, tags, custom fields
 - **Companies** - Organizations with domain, industry, revenue
@@ -86,10 +95,10 @@ POST   /crm/association-definitions    Define relationship type
 │       └── middleware/            Tenant extraction, error handling
 ├── elasticsearch/mappings/        ES index mappings (contacts, companies, opportunities, custom_objects)
 ├── docs/
-│   ├── part1-data-model.md        ERD, DDL (SQL snippets), multi-tenant strategy
-│   ├── part2-storage-indexing.md  Storage engines, indexing, consistency
-│   ├── part3-api-contracts.md     Full API reference, filter DSL, versioning
-│   └── part4-reliability-safety.md Reliability, isolation, and scale essay
+│   ├── data-model.md              ERD, DDL (SQL snippets), multi-tenant strategy
+│   ├── storage-indexing.md        Storage engines, indexing, consistency
+│   ├── api-contracts.md           Full API reference, filter DSL, versioning
+│   └── reliability-safety.md      Reliability, isolation, and scale essay
 ```
 
 ## Trade-Offs
@@ -102,14 +111,3 @@ POST   /crm/association-definitions    Define relationship type
 
 **Offset pagination vs cursor**: Chose offset for simplicity. Trade-off is performance degrades at high offsets. Path to cursor-based pagination documented in Part 3.
 
-## What I Would Do Next
-
-- **Testing**: Unit tests for service layer, integration tests with testcontainers
-- **CDC Pipeline**: Replace synchronous ES sync with Debezium + Kafka
-- **Cursor Pagination**: Replace offset-based with cursor-based for large result sets
-- **Field Validation**: Validate custom field values against schema definitions
-- **Audit Log**: Track all changes with before/after snapshots
-- **Bulk Operations**: Batch create/update endpoints for import workflows
-- **Webhooks**: Emit events on record changes for automation consumers
-- **Rate Limiting**: Per-tenant rate limiting middleware
-- **Caching**: Redis cache for frequently accessed schemas and pipeline definitions

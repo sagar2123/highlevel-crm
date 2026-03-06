@@ -1,4 +1,4 @@
-# Part 3 -- API & Data Contract Design (Including Custom Objects)
+# API & Data Contract Design (Including Custom Objects)
 
 ## Table of Contents
 

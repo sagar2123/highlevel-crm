@@ -1,4 +1,4 @@
-# Part 2 -- Storage & Indexing Strategy Across Multiple Engines
+# Storage & Indexing Strategy Across Multiple Engines
 
 ## Overview
 

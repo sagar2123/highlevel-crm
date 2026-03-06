@@ -1,4 +1,4 @@
-# Part 4 -- Reliability, Isolation & Safety at Scale
+# Reliability, Isolation & Safety at Scale
 
 ## 1. Reliability & Performance Budgets
 
