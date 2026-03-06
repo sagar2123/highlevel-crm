@@ -1,6 +1,11 @@
 # Canonical CRM Data Model & Multi-Tenant Schema
 
-## Overview
+## Executive Summary
+
+- **Multi-Tenancy:** Employs a **Shared-Schema** strategy with **PostgreSQL Row Level Security (RLS)**. This provides hard database-level isolation while maintaining a single, manageable migration set and a shared connection pool.
+- **Custom Objects:** Implements a **Generic Record Store** where tenant-defined entities (e.g., Vehicles, Policies) are managed through a unified schema and record system.
+- **Extensibility:** Uses a **Hybrid JSONB approach** for custom fields. This offers the performance of single-row reads (avoiding EAV joins) while allowing per-tenant schema flexibility.
+- **Relationships:** Features a **Polymorphic Association Framework** that supports typed, bidirectional links (1:1, 1:N, N:N) between any combination of built-in and custom object types.
 
 This document describes the canonical data model for the CRM data platform. The system is built on PostgreSQL with a shared-schema multi-tenancy strategy enforced by Row Level Security (RLS). It supports core CRM entities (contacts, companies, pipelines, opportunities), tenant-defined custom objects, and a polymorphic association framework that allows typed relationships between any combination of built-in and custom object types.
 

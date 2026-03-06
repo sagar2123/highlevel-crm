@@ -1,6 +1,11 @@
 # Reliability, Isolation & Safety at Scale
 
-## 1. Reliability & Performance Budgets
+## Executive Summary
+
+- **Performance Budgets:** Defines **hard latency targets** (P95 < 50ms for CRUD, P95 < 200ms for Search) to drive architectural decisions such as JSONB usage and Elasticsearch routing.
+- **Tenant Isolation:** Multi-tenant protection via **Row-Level Security (RLS)** in PostgreSQL, **Shard-level routing** in ES, and **per-tenant quotas** to mitigate the blast radius of "noisy neighbor" scenarios.
+- **Scale Infrastructure:** Future-looking roadmap toward a **Cell-based Architecture**, allowing large "whale" tenants to move to dedicated hardware without redesigning the platform.
+- **Zero-Downtime Migrations:** Outlines safe evolution patterns for multi-billion record datasets, including **concurrent index builds**, **blue-green ES reindexing**, and throttled batch backfills.
 
 Performance budgets are not aspirational targets; they are hard constraints that shape every architectural decision. When a latency ceiling is defined before implementation begins, it eliminates entire categories of design choices and forces the system toward provably fast paths.
 

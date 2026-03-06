@@ -1,6 +1,11 @@
 # API & Data Contract Design (Including Custom Objects)
 
-## Table of Contents
+## Executive Summary
+
+- **Generic Object Pattern:** A single, uniform URL structure (`/crm/objects/{object_type}`) for **Contacts, Companies, and Custom Objects** like Vehicles or Policies, allowing client applications to handle any entity with a common interface.
+- **Unified Property Model:** All fields (core and custom) are managed through a single **`properties` map**, where the backend handles routing to typed columns or JSONB store based on schema definitions.
+- **Structured Filter DSL:** A **boolean-capable Filter DSL** (AND/OR groups) that allows for rich full-text and structured queries across both core and custom fields.
+- **Scalable Evolution:** Features aURI-based versioning and **Deprecation/Sunset headers**, with a documented strategy for migrating clients from v1 (e.g., `first_name`/`last_name`) to v2 (e.g., `full_name`) without breaking changes.
 
 1. [Design Principles](#1-design-principles)
 2. [Complete API Reference](#2-complete-api-reference)

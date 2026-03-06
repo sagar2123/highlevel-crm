@@ -1,6 +1,11 @@
 # Storage & Indexing Strategy Across Multiple Engines
 
-## Overview
+## Executive Summary
+
+- **Single Source of Truth (SSOT):** PostgreSQL provides **ACID-compliant storage** for all authoritative data. Every mutation targets PostgreSQL first, leveraging RLS for data safety.
+- **Search Optimization:** Derived search store using **Elasticsearch 8**. Employs **Shard Routing by `tenant_id`** to eliminate scatter-gather overhead and achieve sub-100ms search latency at scale.
+- **Data Denormalization:** Resolves related entity names (e.g., Company name on Contact) at index time to support **complex, cross-entity filtering** without the performance penalty of joins.
+- **Consistency Model:** Uses a **Synchronous Dual-Write** pattern for real-time search updates, with a documented path toward **CDC (Debezium/Kafka)** and a background reconciliation job to handle index drift.
 
 This document describes the storage and indexing architecture for the CRM Data Platform. The system uses a polyglot persistence approach where different storage engines serve different access patterns:
 
