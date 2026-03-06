@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-- **Generic Object Pattern:** A single, uniform URL structure (`/crm/objects/{object_type}`) for **Contacts, Companies, and Custom Objects** like Vehicles or Policies, allowing client applications to handle any entity with a common interface.
+- **Generic Object Pattern:** A single, uniform URL structure (`/crm/objects/{object_type}`) for **CRM Objects** (synonymous with **Domain Entities**) like **Contacts, Companies, and Custom Objects** (e.g., Vehicles or Policies), allowing client applications to handle any entity with a common interface.
 - **Unified Property Model:** All fields (core and custom) are managed through a single **`properties` map**, where the backend handles routing to typed columns or JSONB store based on schema definitions.
 - **Structured Filter DSL:** A **boolean-capable Filter DSL** (AND/OR groups) that allows for rich full-text and structured queries across both core and custom fields.
 - **Scalable Evolution:** Features aURI-based versioning and **Deprecation/Sunset headers**, with a documented strategy for migrating clients from v1 (e.g., `first_name`/`last_name`) to v2 (e.g., `full_name`) without breaking changes.
@@ -14,13 +14,11 @@
 5. [Versioning & Evolution](#5-versioning--evolution)
 6. [Pagination](#6-pagination)
 
----
-
 ## 1. Design Principles
 
 ### 1.1 Generic Object Pattern
 
-Every CRM entity -- whether built-in or tenant-defined -- is accessed through a single, uniform URL structure:
+Every CRM Object (Domain Entity) - whether built-in or tenant-defined - is accessed through a single, uniform URL structure:
 
 ```
 /crm/objects/{object_type}
@@ -66,7 +64,7 @@ Clients can parse any response without knowing the object type in advance. SDKs 
 
 ### 1.3 Properties-Based Model
 
-All fields -- system-defined and custom -- live in a flat `properties` object. There is no structural distinction between a built-in field like `email` and a tenant-defined field like `plan_type`. The server maps known property keys to typed columns (for indexing and validation) and stores unrecognized keys in a `jsonb` column (`custom_properties`).
+All fields - system-defined and custom - live in a flat `properties` object. There is no structural distinction between a built-in field like `email` and a tenant-defined field like `plan_type`. The server maps known property keys to typed columns (for indexing and validation) and stores unrecognized keys in a `jsonb` column (`custom_properties`).
 
 ```json
 {
@@ -92,8 +90,6 @@ Multi-tenancy is enforced at the middleware layer. Two headers carry identity:
 
 These headers are extracted by the `TenantExtractor` middleware and injected into the request context before any handler executes. All repository queries include a `WHERE tenant_id = ?` clause, and Elasticsearch queries include a `term` filter on `tenant_id` with routing by the same value.
 
----
-
 ## 2. Complete API Reference
 
 All paths are relative to the base URL. In v1: `https://api.example.com/crm/...`
@@ -105,8 +101,6 @@ X-Tenant-Id: d290f1ee-6c54-4b01-90e6-d701748f0851
 X-User-Id: 7c9e6679-7425-40de-944b-e07fc1f90ae7       (optional)
 Content-Type: application/json
 ```
-
----
 
 ### 2.1 Generic Object CRUD
 
@@ -149,8 +143,6 @@ Create a new record of the given object type.
 }
 ```
 
----
-
 #### GET /crm/objects/{object_type}
 
 List records with offset-based pagination.
@@ -159,7 +151,7 @@ List records with offset-based pagination.
 
 | Parameter   | Type | Default | Max | Description                |
 |-------------|------|---------|-----|----------------------------|
-| `page`      | int  | 1       | --  | Page number (1-indexed)    |
+| `page`      | int  | 1       | -   | Page number (1-indexed)    |
 | `page_size` | int  | 20      | 100 | Records per page           |
 
 **Request:**
@@ -203,8 +195,6 @@ GET /crm/objects/contacts?page=2&page_size=10
 }
 ```
 
----
-
 #### GET /crm/objects/{object_type}/{id}
 
 Retrieve a single record by ID.
@@ -233,8 +223,6 @@ GET /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890
   "updated_at": "2026-03-06T10:30:00Z"
 }
 ```
-
----
 
 #### PATCH /crm/objects/{object_type}/{id}
 
@@ -270,8 +258,6 @@ Partial update. Only the properties supplied in the request body are modified. O
 }
 ```
 
----
-
 #### DELETE /crm/objects/{object_type}/{id}
 
 Soft-delete a record. Sets `lifecycle_state` to `deleted` and populates `deleted_at`. The record is excluded from default list and search queries but remains in the database for audit purposes.
@@ -284,8 +270,6 @@ DELETE /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 **Response: `204 No Content`**
 
 No response body.
-
----
 
 #### PATCH /crm/objects/{object_type}/{id}/archive
 
@@ -303,8 +287,6 @@ PATCH /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/archive
 }
 ```
 
----
-
 #### PATCH /crm/objects/{object_type}/{id}/restore
 
 Restore a previously archived or soft-deleted record to `active` state.
@@ -320,8 +302,6 @@ PATCH /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/restore
   "status": "restored"
 }
 ```
-
----
 
 ### 2.2 Search
 
@@ -377,8 +357,6 @@ Full-text and structured search. The search endpoint delegates to Elasticsearch 
 
 See [Section 3: Query & Filter Model](#3-query--filter-model) for the full filter specification.
 
----
-
 ### 2.3 Associations
 
 Associations create typed, bidirectional links between records. Each association references an `AssociationDefinition` that declares the allowed object types and cardinality.
@@ -408,8 +386,6 @@ Create an association from the source record to a target record.
   "created_at": "2026-03-06T11:00:00Z"
 }
 ```
-
----
 
 #### GET /crm/objects/{object_type}/{id}/associations
 
@@ -447,8 +423,6 @@ GET /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/associations?page
 }
 ```
 
----
-
 #### DELETE /crm/objects/{object_type}/{id}/associations/{assoc_id}
 
 Remove an association.
@@ -461,8 +435,6 @@ DELETE /crm/objects/contacts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/associations/d
 **Response: `204 No Content`**
 
 No response body.
-
----
 
 ### 2.4 Custom Object Schemas
 
@@ -576,9 +548,8 @@ After creation, records of this type can be managed via `POST /crm/objects/vehic
 
 **Supported `field_type` values:** `text`, `textarea`, `number`, `date`, `phone`, `email`, `dropdown`, `boolean`.
 
----
+### 2.5 Association Definitions
 
-#### GET /crm/schemas
 
 List all custom object schemas for the tenant.
 
@@ -615,8 +586,6 @@ GET /crm/schemas?page=1&page_size=10
   "page_size": 10
 }
 ```
-
----
 
 #### GET /crm/schemas/{id}
 
@@ -678,8 +647,6 @@ GET /crm/schemas/e5f6a7b8-c9d0-1234-ef01-234567890abc
   "updated_at": "2026-03-06T12:00:00Z"
 }
 ```
-
----
 
 #### PATCH /crm/schemas/{id}
 
@@ -799,8 +766,6 @@ Update an existing schema. Typically used to add new fields or modify labels. Re
 }
 ```
 
----
-
 #### DELETE /crm/schemas/{id}
 
 Delete a custom object schema. This soft-deletes the schema and prevents new records from being created under this object type. Existing records remain in the database but become inaccessible through the generic object endpoints.
@@ -813,8 +778,6 @@ DELETE /crm/schemas/e5f6a7b8-c9d0-1234-ef01-234567890abc
 **Response: `204 No Content`**
 
 No response body.
-
----
 
 ### 2.5 Association Definitions
 
@@ -862,8 +825,6 @@ Association definitions work across built-in and custom object types. For exampl
 }
 ```
 
----
-
 #### GET /crm/association-definitions
 
 List all association definitions for the tenant.
@@ -900,8 +861,6 @@ GET /crm/association-definitions?page=1&page_size=10
 }
 ```
 
----
-
 #### DELETE /crm/association-definitions/{id}
 
 Delete an association definition. Existing associations referencing this definition are not automatically removed but become orphaned. Clients should clean up related associations before or after deletion.
@@ -914,8 +873,6 @@ DELETE /crm/association-definitions/f47ac10b-58cc-4372-a567-0e02b2c3d479
 **Response: `204 No Content`**
 
 No response body.
-
----
 
 ### 2.6 Pipelines
 
@@ -1001,8 +958,6 @@ Create a pipeline with an initial set of stages.
 }
 ```
 
----
-
 #### GET /crm/pipelines
 
 List all pipelines for the tenant.
@@ -1040,8 +995,6 @@ GET /crm/pipelines?page=1&page_size=10
   "has_more": false
 }
 ```
-
----
 
 #### GET /crm/pipelines/{id}
 
@@ -1081,8 +1034,6 @@ GET /crm/pipelines/1a2b3c4d-5e6f-7890-abcd-ef1234567890
 }
 ```
 
----
-
 #### POST /crm/pipelines/{id}/stages
 
 Add a stage to an existing pipeline.
@@ -1101,8 +1052,6 @@ Add a stage to an existing pipeline.
   "status": "stage added"
 }
 ```
-
----
 
 ## 3. Query & Filter Model
 
@@ -1288,8 +1237,6 @@ For a search requesting active contacts from website/referral sources matching "
 }
 ```
 
----
-
 ## 4. Error Response Shape
 
 All error responses follow a consistent envelope:
@@ -1375,6 +1322,7 @@ HTTP/1.1 400 Bad Request
 ```
 HTTP/1.1 500 Internal Server Error
 
+```json
 {
   "error": {
     "code": "INTERNAL_ERROR",
@@ -1383,9 +1331,8 @@ HTTP/1.1 500 Internal Server Error
 }
 ```
 
----
-
 ## 5. Versioning & Evolution
+
 
 ### 5.1 Strategy: URI-Based Versioning
 
@@ -1415,7 +1362,7 @@ Renaming a field is a multi-step process that avoids breaking existing clients.
 
 In v1, contacts have separate `first_name` and `last_name` properties. In v2, the API adds a computed `full_name` property and deprecates the individual fields.
 
-**Step 1 -- Add the new field (v1, backward-compatible):**
+**Step 1: Add the new field (v1, backward-compatible):**
 
 The server begins returning `full_name` alongside `first_name` and `last_name`:
 
@@ -1443,7 +1390,7 @@ Sunset: 2027-03-06
 Link: </v2/crm/objects/contacts>; rel="successor-version"
 ```
 
-**Step 2 -- Transition period (N versions, typically 6-12 months):**
+**Step 2: Transition period (N versions, typically 6-12 months):**
 
 During the transition:
 
@@ -1452,7 +1399,7 @@ During the transition:
 - The server computes `full_name` from the parts on read and parses `full_name` into parts on write (if only `full_name` is provided).
 - API documentation marks `first_name` and `last_name` as deprecated.
 
-**Step 3 -- New version (v2):**
+**Step 3: New version (v2):**
 
 The v2 endpoint drops `first_name` and `last_name` from responses. Clients that still send them receive a `VALIDATION_WARNING` in the response (non-blocking) or the fields are silently accepted and parsed.
 
@@ -1498,8 +1445,6 @@ Link: </v2/crm/objects/contacts>; rel="successor-version"
 ```
 
 Clients can programmatically detect these headers and plan migration.
-
----
 
 ## 6. Pagination
 
@@ -1595,15 +1540,13 @@ LIMIT $page_size;
 
 | Concern               | Offset                                | Cursor                                   |
 |-----------------------|---------------------------------------|------------------------------------------|
-| Query performance     | O(offset + limit) -- scans skipped rows | O(limit) -- seeks directly via index     |
-| Result stability      | Unstable under concurrent writes      | Stable -- keyset condition is deterministic |
+| Query performance     | O(offset + limit) - scans skipped rows | O(limit) - seeks directly via index     |
+| Result stability      | Unstable under concurrent writes      | Stable - keyset condition is deterministic |
 | Deep page access      | Degrades linearly                     | Constant time regardless of position     |
 | Elasticsearch window  | Subject to `max_result_window`        | Uses `search_after`, no window limit     |
-| Backward compatibility | N/A (current default)               | Additive -- `after` parameter is optional |
+| Backward compatibility | N/A (current default)               | Additive - `after` parameter is optional |
 
 The cursor-based approach will be introduced as an additive, non-breaking change: if the `after` parameter is present, cursor mode is used; if only `page` and `page_size` are present, offset mode continues to work. This ensures full backward compatibility during the transition.
-
----
 
 ## Appendix: Endpoint Summary
 

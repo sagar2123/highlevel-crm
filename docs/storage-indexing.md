@@ -9,24 +9,22 @@
 
 This document describes the storage and indexing architecture for the CRM Data Platform. The system uses a polyglot persistence approach where different storage engines serve different access patterns:
 
-- **PostgreSQL** -- source of truth for all CRM data (contacts, companies, opportunities, custom objects)
-- **Elasticsearch** -- derived read-optimized store for search, filtering, and full-text queries
-- **ClickHouse / BigQuery** -- analytics layer for dashboards, aggregations, and historical reporting (discussed but not implemented in the current codebase)
+- **PostgreSQL** - source of truth for all CRM data (contacts, companies, opportunities, custom objects)
+- **Elasticsearch** - derived read-optimized store for search, filtering, and full-text queries
+- **ClickHouse / BigQuery** - analytics layer for dashboards, aggregations, and historical reporting (discussed but not implemented in the current codebase)
 
 All stores operate in a multi-tenant model with `tenant_id` as the tenant identifier. Tenant isolation is enforced at every layer: Row-Level Security policies in PostgreSQL, mandatory routing and term filters in Elasticsearch, and tenant-scoped partitions in the analytics tier.
 
----
-
 ## 1. Source of Truth vs Derived Stores
 
-### PostgreSQL -- Source of Truth
+### PostgreSQL: Source of Truth
 
 PostgreSQL is the authoritative store for all CRM data. Every write operation (create, update, delete, archive) targets PostgreSQL first. It provides:
 
-- **ACID transactions** -- every mutation is wrapped in a transaction with tenant context set via `SET LOCAL app.current_tenant_id`, ensuring atomicity and isolation.
-- **Referential integrity** -- foreign keys enforce relationships between contacts and companies, opportunities and pipelines/stages, custom object records and schemas, and associations between any two record types.
-- **Row-Level Security** -- every table has an RLS policy that filters rows by `tenant_id = current_setting('app.current_tenant_id')::uuid`, guaranteeing that tenant data is never leaked even if application code has a bug.
-- **Schema enforcement** -- built-in types (contacts, companies, opportunities) have strongly typed columns, while extensibility is provided through JSONB `custom_properties` columns.
+- **ACID transactions**: every mutation is wrapped in a transaction with tenant context set via `SET LOCAL app.current_tenant_id`, ensuring atomicity and isolation.
+- **Referential integrity**: foreign keys enforce relationships between contacts and companies, opportunities and pipelines/stages, custom object records and schemas, and associations between any two record types.
+- **Row-Level Security**: every table has an RLS policy that filters rows by `tenant_id = current_setting('app.current_tenant_id')::uuid`, guaranteeing that tenant data is never leaked even if application code has a bug.
+- **Schema enforcement**: built-in types (contacts, companies, opportunities) have strongly typed columns, while extensibility is provided through JSONB `custom_properties` columns.
 
 The PostgreSQL schema (from `migrations/000003_create_crm_tables.up.sql`) defines the canonical structure:
 
@@ -51,24 +49,24 @@ CREATE TABLE contacts (
 );
 ```
 
-### Elasticsearch -- Derived Search Store
+### Elasticsearch: Derived Search Store
 
 Elasticsearch is a read-optimized derived store. It is never written to directly by clients; it receives data exclusively from the application service layer after a successful PostgreSQL write. It provides:
 
-- **Full-text search** -- custom analyzers for names (asciifolding, lowercase) and emails (uax_url_email tokenizer) enable fuzzy, accent-insensitive search.
-- **Faceted filtering** -- keyword sub-fields allow exact-match filtering and sorting on fields like `lifecycle_state`, `source`, `tags`, `pipeline_name`, and `stage_name`.
-- **Denormalized documents** -- related entity names (company_name, contact_name, pipeline_name, stage_name) are embedded in ES documents to avoid cross-index joins.
-- **Dynamic custom properties** -- the `custom_properties` (or `properties` for custom objects) field uses `"dynamic": true` so tenant-defined fields are automatically indexed.
+- **Full-text search**: custom analyzers for names (asciifolding, lowercase) and emails (uax_url_email tokenizer) enable fuzzy, accent-insensitive search.
+- **Faceted filtering**: keyword sub-fields allow exact-match filtering and sorting on fields like `lifecycle_state`, `source`, `tags`, `pipeline_name`, and `stage_name`.
+- **Denormalized documents**: related entity names (company_name, contact_name, pipeline_name, stage_name) are embedded in ES documents to avoid cross-index joins.
+- **Dynamic custom properties**: the `custom_properties` (or `properties` for custom objects) field uses `"dynamic": true` so tenant-defined fields are automatically indexed.
 
 If Elasticsearch is temporarily unavailable, the application continues to serve reads from PostgreSQL (list endpoints hit PG directly). Search functionality degrades gracefully.
 
-### Analytics -- ClickHouse / BigQuery (Future)
+### Analytics: ClickHouse / BigQuery (Future)
 
 The analytics tier is designed for workloads that are poor fits for both PostgreSQL and Elasticsearch:
 
-- **Dashboard aggregations** -- "total pipeline value by stage this quarter" across millions of opportunities.
-- **Historical reporting** -- time-series analysis of contact acquisition, deal velocity, conversion funnels.
-- **Cross-tenant platform analytics** -- aggregate metrics for the platform operator (not exposed to tenants).
+- **Dashboard aggregations**: "total pipeline value by stage this quarter" across millions of opportunities.
+- **Historical reporting**: time-series analysis of contact acquisition, deal velocity, conversion funnels.
+- **Cross-tenant platform analytics**: aggregate metrics for the platform operator (not exposed to tenants).
 
 Acceptable latency for analytics data is 1-5 minutes behind the source of truth, loaded via CDC or batch ETL.
 
@@ -92,8 +90,6 @@ Response to Client
 ```
 
 All writes go to PostgreSQL first. The ES index operation happens after the PG transaction commits. If ES indexing fails, the data is still safe in PostgreSQL and the ES document will be reconciled by a drift detection job (described in Section 4).
-
----
 
 ## 2. Indexing & Denormalization for Elasticsearch
 
@@ -129,7 +125,7 @@ Key denormalization decisions:
 
 - `full_name` is a computed field (`first_name + " " + last_name`) that enables single-field name search without requiring a `multi_match` across two fields.
 - `company_name` is denormalized from the related `companies` table so that filtering contacts by company name does not require a join or secondary lookup.
-- `custom_properties` is a dynamic object -- when a tenant adds a custom field like `lead_score`, Elasticsearch automatically creates a mapping for it.
+- `custom_properties` is a dynamic object: when a tenant adds a custom field like `lead_score`, Elasticsearch automatically creates a mapping for it.
 
 ### Opportunities Index (`opportunities`)
 
@@ -217,8 +213,6 @@ This guarantees:
 2. Search queries skip N-1 shards, hitting only the shard that contains the tenant's data.
 3. Combined with the mandatory `term` filter on `tenant_id` in every query, there is no possibility of cross-tenant data leakage.
 
----
-
 ## 3. Example Search Index Schema
 
 The full mapping for the contacts index (`elasticsearch/mappings/contacts.json`):
@@ -295,13 +289,11 @@ The full mapping for the contacts index (`elasticsearch/mappings/contacts.json`)
 - **Date fields** (`created_at`, `updated_at`): Enable range queries for temporal filtering (e.g., "contacts created in the last 30 days") and date histogram aggregations.
 - **Dynamic object** (`custom_properties`): New fields are automatically detected and mapped by Elasticsearch. String values become `text` with a `.keyword` sub-field; numbers become `long` or `float`; booleans become `boolean`.
 
----
-
 ## 4. Consistency & Latency Trade-Offs
 
 The system operates with three consistency tiers:
 
-### Tier 1: Strong Consistency -- PostgreSQL
+### Tier 1: Strong Consistency - PostgreSQL
 
 All CRUD operations hit PostgreSQL directly. Read-after-write consistency is guaranteed within the same request. The `ListRecords` and `GetRecord` endpoints read from PostgreSQL, so a client that creates a contact and immediately lists contacts will always see their new record.
 
@@ -310,7 +302,7 @@ Write  -->  PostgreSQL  -->  Read (same request or subsequent)
             (ACID)          Result: guaranteed to see the write
 ```
 
-### Tier 2: Eventual Consistency -- Elasticsearch (2-5 seconds)
+### Tier 2: Eventual Consistency - Elasticsearch (2-5 seconds)
 
 The current implementation uses synchronous dual-write within the application service. After a successful PG commit, the service issues an ES index request in the same HTTP request handler:
 
@@ -330,7 +322,7 @@ The ES write is fire-and-forget: if it fails, the error is logged but the HTTP r
 - **Failure path**: ES index fails, the document is missing from search results until the next update or the drift reconciliation job runs.
 - **Stale read window**: Between the PG commit and ES refresh, a search query may not return the newly created record. This is acceptable because the `ListRecords` endpoint (which is the primary "list all" endpoint) reads from PG.
 
-### Tier 3: Acceptable Lag -- Analytics (1-5 minutes)
+### Tier 3: Acceptable Lag - Analytics (1-5 minutes)
 
 The analytics tier (ClickHouse/BigQuery) operates on a separate pipeline:
 
@@ -357,8 +349,6 @@ The reconciliation strategy:
 4. **Full re-index**: If drift exceeds a threshold (e.g., >5% of records), trigger a full re-index for that tenant using the bulk API.
 
 All sync operations are idempotent. ES documents are indexed by their PG `id`, so re-indexing the same record simply overwrites the existing document with the current PG state.
-
----
 
 ## 5. Indexing Pipeline
 
@@ -390,10 +380,10 @@ The write path for each operation:
 **Trade-offs of synchronous dual-write**:
 
 - Pro: Simple implementation, low operational overhead, no additional infrastructure.
-- Pro: Tight latency -- ES is updated within the same request.
+- Pro: Tight latency - ES is updated within the same request.
 - Con: Adds latency to every write (ES round-trip time).
-- Con: No retry mechanism -- a failed ES write is logged and lost until reconciliation.
-- Con: Tight coupling -- the application service must know about ES.
+- Con: No retry mechanism - a failed ES write is logged and lost until reconciliation.
+- Con: Tight coupling - the application service must know about ES.
 
 ### Future: CDC via Debezium
 
@@ -458,15 +448,13 @@ For large re-indexes (millions of records):
 - Use multiple worker goroutines to parallelize bulk API calls.
 - Create the new index with an alias, then swap the alias atomically after the re-index completes (zero-downtime re-index).
 
----
-
 ## 6. PostgreSQL Indexing Strategy
 
 All indexes in the system are defined in `migrations/000007_create_indexes.up.sql`. The guiding principles:
 
 1. **`tenant_id` is always the leading column** in composite indexes, aligning with the RLS policy `WHERE tenant_id = current_setting('app.current_tenant_id')::uuid`. The query planner can use the index for both the RLS filter and the application-level filter in a single scan.
 
-2. **Index only what queries need** -- every index corresponds to an actual query pattern in the application.
+2. **Index only what queries need**: every index corresponds to an actual query pattern in the application.
 
 ### Composite B-Tree Indexes
 
@@ -497,9 +485,9 @@ CREATE INDEX idx_cor_location_lifecycle ON custom_object_records(tenant_id, life
 
 - `(tenant_id, lifecycle_state)`: Every list query filters by tenant and active state. This is the most frequently used index.
 - `(tenant_id, email)`: Contact lookup by email within a tenant. Partial index excludes NULLs (contacts without email).
-- `(tenant_id, pipeline_id, stage_id)`: Opportunity board view -- "show all deals in stage X of pipeline Y for this tenant." The three-column composite allows the planner to satisfy the query with an index-only scan.
+- `(tenant_id, pipeline_id, stage_id)`: Opportunity board view: "show all deals in stage X of pipeline Y for this tenant." The three-column composite allows the planner to satisfy the query with an index-only scan.
 - `(tenant_id, created_at DESC)`: Supports "most recent contacts" queries with efficient descending scan.
-- `(tenant_id, assigned_to)`: Opportunity assignment queries -- "show all deals assigned to user X." Partial index excludes unassigned opportunities.
+- `(tenant_id, assigned_to)`: Opportunity assignment queries: "show all deals assigned to user X." Partial index excludes unassigned opportunities.
 
 ### GIN Indexes for JSONB and Arrays
 
@@ -540,8 +528,6 @@ USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
 ```
 
 Because `tenant_id` is the leading column in every composite index, the query planner efficiently satisfies both the RLS filter and the application query in a single index scan. Without this alignment, the RLS filter would require a separate sequential scan or filter step.
-
----
 
 ## 7. Partitioning Strategy
 
@@ -617,8 +603,6 @@ For tenants with disproportionately large datasets (>10 million records in a sin
 3. **Separate connection pools**: Route whale tenant queries to read replicas to avoid impacting other tenants.
 4. **ES shard splitting**: If a single shard grows too large due to a whale tenant (>50GB), use the ES split index API or re-index with more shards.
 
----
-
 ## 8. Multi-Tenant Search
 
 ### Shared Index with Mandatory Tenant Filter
@@ -688,8 +672,6 @@ The multi-tenant search security model has defense in depth:
 2. **Query layer**: Every ES query includes a `term` filter on `tenant_id`, injected by the search repository.
 3. **Routing layer**: ES routing ensures the query physically only touches the shard containing the tenant's data.
 4. **No direct ES access**: Elasticsearch is not exposed to clients. All access goes through the application API.
-
----
 
 ## Summary
 

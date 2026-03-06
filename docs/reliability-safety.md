@@ -47,15 +47,13 @@ Search is where the architecture diverges from the source-of-truth database. Com
 
 Backfill jobs are throttled explicitly: batch updates with `WHERE id > last_processed_id LIMIT 10000`, paced at one batch per second. Without this throttle, a backfill across billions of rows would saturate disk I/O and evict hot pages from the buffer pool, violating every CRUD latency budget.
 
----
-
 ## 2. Multi-Tenant Isolation & Blast Radius
 
-In a multi-tenant system, the fundamental risk is not just a security breach -- it is the operational reality that one tenant's behavior can degrade the experience for every other tenant sharing the same infrastructure.
+In a multi-tenant system, the fundamental risk is not just a security breach: it is the operational reality that one tenant's behavior can degrade the experience for every other tenant sharing the same infrastructure.
 
 ### Database Layer Isolation
 
-**Row-Level Security is the hard boundary.** RLS policies enforce `tenant_id = current_setting('app.current_tenant_id')` at the PostgreSQL level. Even if the application contains a bug -- a missing WHERE clause, an ORM misconfiguration, a malformed query -- the database itself refuses to return rows belonging to another tenant. This is defense in depth: the application sets the tenant context via `SET LOCAL` at transaction start, and the database enforces it regardless of what queries follow.
+**Row-Level Security is the hard boundary.** RLS policies enforce `tenant_id = current_setting('app.current_tenant_id')` at the PostgreSQL level. Even if the application contains a bug - a missing WHERE clause, an ORM misconfiguration, a malformed query - the database itself refuses to return rows belonging to another tenant. This is defense in depth: the application sets the tenant context via `SET LOCAL` at transaction start, and the database enforces it regardless of what queries follow.
 
 `SET LOCAL statement_timeout = '5s'` is applied per transaction. This prevents a single tenant's runaway query (an unindexed filter on a 100M row table) from holding a connection and blocking other tenants. The connection pool is shared, so a stuck connection is a shared resource consumed. The timeout ensures it is released.
 
@@ -76,9 +74,7 @@ Quotas limit the blast radius of intentional load. Monitoring addresses the unin
 
 ### Cell-Based Architecture (Future State)
 
-The natural evolution of tenant isolation is the cell model. Each cell is a fully independent stack: its own PostgreSQL instance, its own ES cluster, its own application tier. Tenants are assigned to cells based on load. Large tenants receive dedicated cells. The blast radius of any infrastructure failure -- a bad deploy, a hardware fault, a corrupted index -- is limited to a single cell. This is the architecture that allows the platform to scale to tens of thousands of tenants without compounding operational risk.
-
----
+The natural evolution of tenant isolation is the cell model. Each cell is a fully independent stack: its own PostgreSQL instance, its own ES cluster, its own application tier. Tenants are assigned to cells based on load. Large tenants receive dedicated cells. The blast radius of any infrastructure failure - a bad deploy, a hardware fault, a corrupted index - is limited to a single cell. This is the architecture that allows the platform to scale to tens of thousands of tenants without compounding operational risk.
 
 ## 3. Migrations & Evolution
 
@@ -107,7 +103,7 @@ At no point does the application need to be aware of the migration. It reads and
 As the platform grows, different object types (contacts, opportunities, companies) will develop divergent access patterns and scaling requirements. The strangler fig pattern provides a safe extraction path:
 
 1. **Extract one object type at a time** into its own service with its own data store.
-2. **Dual-write phase:** Both the legacy store and the new service receive writes. This provides a rollback path -- if the new service has issues, the legacy store is still authoritative.
+2. **Dual-write phase:** Both the legacy store and the new service receive writes. This provides a rollback path: if the new service has issues, the legacy store is still authoritative.
 3. **Read migration:** Gradually shift read traffic to the new service behind a feature flag, starting at a small percentage and increasing as confidence grows.
 4. **Reconciliation:** A background job continuously compares records between the old and new stores, flagging any divergence.
 5. **Event-driven decoupling:** Introduce domain events (`ContactCreated`, `OpportunityStageChanged`) so that downstream consumers (search indexing, analytics, notifications) are decoupled from the source service. This prevents the extraction of one service from requiring coordinated changes across every consumer.
@@ -118,8 +114,6 @@ No schema change or behavioral change is deployed to all tenants simultaneously:
 
 - New schema-dependent features are gated behind feature flags, rolled out progressively: 1% of tenants, then 10%, then 50%, then 100%.
 - Canary deployments target a single cell first. Error rates and latency are monitored against baseline before proceeding.
-- Every migration has a corresponding down migration. Every feature flag can be disabled instantly. The ability to roll back within seconds is not optional -- it is a prerequisite for deploying changes to a system that other businesses depend on for their daily operations.
-
----
+- Every migration has a corresponding down migration. Every feature flag can be disabled instantly. The ability to roll back within seconds is not optional - it is a prerequisite for deploying changes to a system that other businesses depend on for their daily operations.
 
 **The through-line across reliability, isolation, and migration strategy is the same principle: limit the blast radius.** Performance budgets limit the blast radius of bad design choices. Tenant isolation limits the blast radius of noisy neighbors. Cell architecture limits the blast radius of infrastructure failures. Staged rollouts limit the blast radius of bad deploys. At staff-level scale, the system's resilience is not defined by how well it handles the happy path, but by how tightly it constrains the damage when something goes wrong.

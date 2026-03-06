@@ -11,8 +11,6 @@ This document describes the canonical data model for the CRM data platform. The 
 
 All tenant-scoped tables share a common structure: a UUID primary key, a `tenant_id` foreign key for tenant ownership, a `lifecycle_state` enum for soft-delete semantics, audit timestamps, and actor tracking fields.
 
----
-
 ## 1. Entity Relationship Diagram
 
 ```mermaid
@@ -189,8 +187,6 @@ erDiagram
 | `association_definitions` | Typed relationship templates between any two object types. | Yes |
 | `associations` | Concrete links between two records, governed by a definition. | Yes |
 
----
-
 ## 2. Multi-Tenant Strategy
 
 ### 2.1 Why Shared Schema + RLS
@@ -269,8 +265,6 @@ CREATE INDEX idx_opps_location_pipeline_stage ON opportunities(tenant_id, pipeli
 
 This is deliberate. The RLS `USING` clause appends `WHERE tenant_id = ...` to every query. By leading indexes with `tenant_id`, the planner can satisfy the RLS filter and the application filter in a single index scan. Without this alignment, the planner would need to perform a full index scan and then filter, negating the benefit of the index.
 
----
-
 ## 3. Custom Field Strategy
 
 ### 3.1 Hybrid Column + JSONB Approach
@@ -341,8 +335,6 @@ Supported field types: `text`, `textarea`, `number`, `date`, `phone`, `email`, `
 
 The `primary_field` column on `custom_object_schemas` references the `key` of one field definition, designating it as the display field for the object (analogous to how a contact's name or a company's name serves as the primary identifier).
 
----
-
 ## 4. Relationship Modelling
 
 ### 4.1 Polymorphic Association Framework
@@ -407,8 +399,6 @@ CREATE INDEX idx_assoc_def_location_types ON association_definitions(tenant_id, 
 
 This allows efficient queries in both directions: "find all companies related to contact X" and "find all contacts related to company Y". The definition-level index supports discovery queries: "what relationship types exist between contacts and companies in this location?"
 
----
-
 ## 5. Key Invariants
 
 ### Invariant 1: Every record belongs to exactly one location
@@ -470,7 +460,6 @@ Pipeline stages are ordered by the `position` integer column, indexed together w
 ```sql
 CREATE INDEX idx_pipeline_stages_pipeline_pos ON pipeline_stages(pipeline_id, position);
 ```
-
 The application layer is responsible for assigning and reordering positions. The cascade delete (`pipeline_id REFERENCES pipelines(id) ON DELETE CASCADE`) ensures that deleting a pipeline removes all its stages, preventing orphaned stages.
 
 **Enforcement**: `ON DELETE CASCADE` foreign key, composite index on `(pipeline_id, position)`, application-layer position management.
@@ -480,8 +469,6 @@ The application layer is responsible for assigning and reordering positions. The
 The `TenantExtractor` middleware rejects requests without `X-Tenant-Id` before they reach any handler. The `TenantDB.Conn` method opens a transaction and sets `SET LOCAL app.current_tenant_id` before returning the GORM handle. If the location ID is missing from the context, the RLS policy will cause queries to fail (the `current_setting` call returns an empty string that cannot be cast to UUID), rather than returning unfiltered data.
 
 **Enforcement**: HTTP middleware (`400 MISSING_TENANT`), `TenantDB.Conn` transaction initialization, PostgreSQL `current_setting` cast failure.
-
----
 
 ## Summary of Enforcement Mechanisms
 
