@@ -1,0 +1,40 @@
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "analysis": {
+      "analyzer": {
+        "email_analyzer": {
+          "type": "custom",
+          "tokenizer": "uax_url_email",
+          "filter": ["lowercase"]
+        },
+        "name_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "_routing": { "required": true },
+    "properties": {
+      "id":               { "type": "keyword" },
+      "tenant_id":      { "type": "keyword" },
+      "first_name":       { "type": "text", "analyzer": "name_analyzer", "fields": { "keyword": { "type": "keyword" } } },
+      "last_name":        { "type": "text", "analyzer": "name_analyzer", "fields": { "keyword": { "type": "keyword" } } },
+      "full_name":        { "type": "text", "analyzer": "name_analyzer" },
+      "email":            { "type": "text", "analyzer": "email_analyzer", "fields": { "keyword": { "type": "keyword" } } },
+      "phone":            { "type": "keyword" },
+      "company_id":       { "type": "keyword" },
+      "company_name":     { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "source":           { "type": "keyword" },
+      "tags":             { "type": "keyword" },
+      "lifecycle_state":  { "type": "keyword" },
+      "custom_properties": { "type": "object", "dynamic": true },
+      "created_at":       { "type": "date" },
+      "updated_at":       { "type": "date" }
+    }
+  }
+}

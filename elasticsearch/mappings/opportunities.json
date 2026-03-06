@@ -1,0 +1,30 @@
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "_routing": { "required": true },
+    "properties": {
+      "id":                  { "type": "keyword" },
+      "tenant_id":         { "type": "keyword" },
+      "name":                { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "pipeline_id":         { "type": "keyword" },
+      "pipeline_name":       { "type": "keyword" },
+      "stage_id":            { "type": "keyword" },
+      "stage_name":          { "type": "keyword" },
+      "contact_id":          { "type": "keyword" },
+      "contact_name":        { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "company_id":          { "type": "keyword" },
+      "company_name":        { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "monetary_value":      { "type": "long" },
+      "currency":            { "type": "keyword" },
+      "expected_close_date": { "type": "date" },
+      "assigned_to":         { "type": "keyword" },
+      "lifecycle_state":     { "type": "keyword" },
+      "custom_properties":   { "type": "object", "dynamic": true },
+      "created_at":          { "type": "date" },
+      "updated_at":          { "type": "date" }
+    }
+  }
+}
