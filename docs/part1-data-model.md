@@ -1,4 +1,4 @@
-# Part 1 -- Canonical CRM Data Model & Multi-Tenant Schema
+# Canonical CRM Data Model & Multi-Tenant Schema
 
 ## Overview
 
